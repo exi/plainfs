@@ -7,9 +7,10 @@
 #include<fstream>
 #include<stdio.h>
 #include<sys/stat.h>
+#include<unordered_map>
 
 #define MAXFILENAMELENGTH 265
-#define MAXFILECOUNT 1024
+#define MAXFILECOUNT 100000
 
 using namespace std;
 
@@ -26,13 +27,19 @@ struct FileMap {
     StoreFile map[MAXFILECOUNT];
 };
 
+class FileAccessor {
+    public:
+        virtual int read(char *buf, size_t size, off_t offset) = 0;
+};
+
 class StoreFileAccessor;
 
 class Store {
     public:
         string storefilename;
-        FILE *file;
-        FileMap map;
+        FILE* file;
+        FileMap* fmap;
+        unordered_map<string, StoreFile*> fileNameMap;
 
         void readStore();
 
@@ -41,21 +48,37 @@ class Store {
         Store(string storefilename) {
             this->storefilename = storefilename;
             this->file = fopen(storefilename.c_str(), "r+b");
+            this->fmap = new FileMap();
 
-            map.start = 16777216;
-            map.nextFreePos = 0;
-            map.entries = 0;
+            this->fmap->start = sizeof(FileMap);
+            this->fmap->nextFreePos = 0;
+            this->fmap->entries = 0;
+
+            cout<<"map start at "<<this->fmap->start<<endl;
 
             if (this->file == NULL) {
                 this->file = fopen(storefilename.c_str(), "w+b");
             }
             this->readStore();
+
+            // generate fast file access map
+            cout<<"generate access map"<<endl;
+            for (int i=0; i<this->fmap->entries; i++) {
+                this->fileNameMap[string("/") + this->fmap->map[i].name] = &(this->fmap->map[i]);
+                cout<<"insert "<<i<<" "<<string("/") + this->fmap->map[i].name<<" "<<strlen(this->fmap->map[i].name)<<endl;
+            }
+            cout<<endl<<"done"<<endl;
         };
 
         ~Store() {
             this->saveStore();
+            delete this->fmap;
             fclose(this->file);
         };
+
+        int getEntryCount();
+
+        int getFreeEntries();
 
         void addFile(string name, struct stat stats, char* buf);
 
@@ -66,13 +89,12 @@ class Store {
         StoreFileAccessor* getAccessor(const char* path);
 };
 
-struct StoreFileAccessor {
+struct StoreFileAccessor: public FileAccessor {
     Store* store;
     StoreFile* file;
     StoreFileAccessor(StoreFile* file, Store* store):store(store), file(file) { };
 
     int read(char *buf, size_t size, off_t offset) {
-        cout<<"read "<<size<<" "<<offset<<endl;
         if (offset > this->file->stats.st_size)
             return 0;
 
@@ -80,17 +102,10 @@ struct StoreFileAccessor {
             size = this->file->stats.st_size - offset;
         }
 
-        cout<<"read after crop "<<size<<" "<<offset<<endl;
-        cout<<"jump to position "<<this->store->map.start + this->file->start + offset<<endl;
-
-
-        fseek(this->store->file, this->store->map.start + this->file->start + offset, SEEK_SET);
+        fseek(this->store->file, this->store->fmap->start + this->file->start + offset, SEEK_SET);
         int ret = fread(buf, sizeof(char), size, this->store->file);
-        cout<<"read "<<ret<<" bytes"<<endl;
-        cout<<strerror(ferror(this->store->file))<<endl;
-        clearerr(this->store->file);
         return ret;
-    }
+    };
 };
 
 
