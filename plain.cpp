@@ -221,6 +221,15 @@ static int plain_release (const char *path, struct fuse_file_info *fi) {
     return 0;
 };
 
+static int plain_unlink (const char* path) {
+    boost::mutex::scoped_lock lock(io_mutex);
+    if (!store->unlink(path)) {
+        return -ENOENT;
+    } else {
+        return 0;
+    }
+}
+
 static int plain_rename(const char* oldname, const char* newname) {
     boost::mutex::scoped_lock lock(io_mutex);
     if (!store->rename(oldname, newname)) {
@@ -240,6 +249,7 @@ int main( int argc, char* argv[] ) {
     plain_operations.rename = plain_rename;
     plain_operations.create = plain_create;
     plain_operations.release = plain_release;
+    plain_operations.unlink = plain_unlink;
     plain_operations.write = plain_write;
 
     store = new Store("store.bin");

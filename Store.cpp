@@ -27,6 +27,17 @@ int Store::getFreeEntries() {
     return MAXFILECOUNT - this->fmap->entries;
 };
 
+void Store::generateHashMap() {
+    // generate fast file access map
+    this->fileNameMap.clear();
+    std::cout<<"generate access map"<<std::endl;
+    for (int i=0; i<this->fmap->entries; i++) {
+        this->fileNameMap[std::string("/") + this->fmap->map[i].name] = &(this->fmap->map[i]);
+        std::cout<<"insert "<<i<<" "<<std::string("/") + this->fmap->map[i].name<<" "<<strlen(this->fmap->map[i].name)<<std::endl;
+    }
+    std::cout<<std::endl<<"done"<<std::endl;
+};
+
 void Store::addFile(std::string name, struct stat stats, char* buf) {
     if (name.length() == 0) {
         std::cout<<"invalid filename \"\""<<std::endl;
@@ -68,6 +79,43 @@ bool Store::rename(const char* oldname, const char* newname) {
     this->fileNameMap.erase(std::string(oldname));
     strcpy(file->name, std::string(newname).substr(1).c_str());
     this->fileNameMap[std::string(newname)] = file;
+
+    return true;
+};
+
+bool Store::unlink(const char* path) {
+    std::unordered_map<std::string, StoreFile*>::iterator match = this->fileNameMap.find(std::string(path));
+
+    if (match == this->fileNameMap.end()) {
+        return false;
+    }
+
+    StoreFile* file = match->second;
+    this->fileNameMap.erase(std::string(path));
+
+    // move all files that come after the delete file to the left, then regen the hashmap
+    // at first, find the index of our file
+    int idx = 0;
+
+    std::cout<<"searching for "<<file<<std::endl;
+    while (&(this->fmap->map[idx]) != file) {
+        std::cout<<"compare "<<&(this->fmap->map[idx])<<std::endl;
+        idx++;
+    } // we know its there, so don't bother to check for anything
+
+    idx++;
+
+    for (; idx<this->fmap->entries; idx++) {
+        this->fmap->map[idx-1] = this->fmap->map[idx];
+    }
+
+    this->fmap->entries--;
+
+    StoreFile* last = &(this->fmap->map[this->fmap->entries - 1]);
+
+    this->fmap->nextFreePos = last->start + last->stats.st_size;
+
+    this->generateHashMap();
 
     return true;
 };

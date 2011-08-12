@@ -43,6 +43,8 @@ class Store {
 
         void saveStore();
 
+        void generateHashMap();
+
         Store(std::string storefilename) {
             this->storefilename = storefilename;
             this->file = fopen(storefilename.c_str(), "r+b");
@@ -58,14 +60,7 @@ class Store {
                 this->file = fopen(storefilename.c_str(), "w+b");
             }
             this->readStore();
-
-            // generate fast file access map
-            std::cout<<"generate access map"<<std::endl;
-            for (int i=0; i<this->fmap->entries; i++) {
-                this->fileNameMap[std::string("/") + this->fmap->map[i].name] = &(this->fmap->map[i]);
-                std::cout<<"insert "<<i<<" "<<std::string("/") + this->fmap->map[i].name<<" "<<strlen(this->fmap->map[i].name)<<std::endl;
-            }
-            std::cout<<std::endl<<"done"<<std::endl;
+            this->generateHashMap();
         };
 
         ~Store() {
@@ -74,6 +69,7 @@ class Store {
             fclose(this->file);
         };
 
+        /* public api */
         int getEntryCount();
 
         int getFreeEntries();
@@ -83,6 +79,8 @@ class Store {
         void getFileList(std::vector<StoreFile>* paths);
 
         bool rename(const char* oldname, const char* newname);
+
+        bool unlink(const char* path);
 
         StoreFile* getFileInfo(const char* path);
 
