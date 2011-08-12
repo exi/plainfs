@@ -1,24 +1,22 @@
 #include"Store.hpp"
 
-using namespace std;
-
 void Store::readStore() {
     fseek(this->file, 0, SEEK_SET);
     fread(this->fmap, sizeof(FileMap), 1, this->file);
-    cout<<"read store: "<<this->fmap->entries<<" entries"<<endl;
-    cout<<"start: "<<this->fmap->start<<" nextFree: "<<this->fmap->nextFreePos<<endl;
-    //cout<<"files:"<<endl;
+    std::cout<<"read store: "<<this->fmap->entries<<" entries"<<std::endl;
+    std::cout<<"start: "<<this->fmap->start<<" nextFree: "<<this->fmap->nextFreePos<<std::endl;
+    //std::cout<<"files:"<<std::endl;
     //for (int i = 0; i<(int)this->fmap->entries; i++) {
-    //    cout<<i<<" > "<<this->fmap->map[i].name<<" : "<<this->fmap->map[i].stats.st_size<<" bytes"<<endl;
+    //    std::cout<<i<<" > "<<this->fmap->map[i].name<<" : "<<this->fmap->map[i].stats.st_size<<" bytes"<<std::endl;
     //}
-    cout<<"readStore finished"<<endl;
+    std::cout<<"readStore finished"<<std::endl;
 };
 
 void Store::saveStore() {
-    cout<<"saving store...";
+    std::cout<<"saving store...";
     fseek(this->file, 0, SEEK_SET);
     fwrite(this->fmap, sizeof(FileMap), 1, this->file);
-    cout<<"done"<<endl;
+    std::cout<<"done"<<std::endl;
 };
 
 int Store::getEntryCount() {
@@ -29,12 +27,12 @@ int Store::getFreeEntries() {
     return MAXFILECOUNT - this->fmap->entries;
 };
 
-void Store::addFile(string name, struct stat stats, char* buf) {
+void Store::addFile(std::string name, struct stat stats, char* buf) {
     if (name.length() == 0) {
-        cout<<"invalid filename \"\""<<endl;
+        std::cout<<"invalid filename \"\""<<std::endl;
         return;
     } else {
-        cout<<"insert "<<name<<endl;
+        std::cout<<"insert "<<name<<std::endl;
     }
 
     StoreFile file;
@@ -44,10 +42,8 @@ void Store::addFile(string name, struct stat stats, char* buf) {
     file.stats = stats;
 
     this->fmap->map[this->fmap->entries] = file;
-    this->fileNameMap.insert(
-            pair<string, StoreFile*>(
-                string("/") + this->fmap->map[this->fmap->entries].name,
-                &(this->fmap->map[this->fmap->entries])));
+    this->fileNameMap[std::string("/") + this->fmap->map[this->fmap->entries].name] =
+                &(this->fmap->map[this->fmap->entries]);
     this->fmap->nextFreePos+=stats.st_size;
     this->fmap->entries = this->fmap->entries + 1;
 
@@ -55,14 +51,29 @@ void Store::addFile(string name, struct stat stats, char* buf) {
     fwrite(buf, stats.st_size, 1, this->file);
 };
 
-void Store::getFileList(vector<StoreFile>* paths) {
+void Store::getFileList(std::vector<StoreFile>* paths) {
     for (int i=0; i<this->fmap->entries ;i++) {
         paths->push_back(this->fmap->map[i]);
     }
 };
 
+bool Store::rename(const char* oldname, const char* newname) {
+    std::unordered_map<std::string, StoreFile*>::iterator match = this->fileNameMap.find(std::string(oldname));
+
+    if (match == this->fileNameMap.end()) {
+        return false;
+    }
+
+    StoreFile* file = match->second;
+    this->fileNameMap.erase(std::string(oldname));
+    strcpy(file->name, std::string(newname).substr(1).c_str());
+    this->fileNameMap[std::string(newname)] = file;
+
+    return true;
+};
+
 StoreFile* Store::getFileInfo(const char* path) {
-    unordered_map<string, StoreFile*>::iterator file = this->fileNameMap.find(string(path));
+    std::unordered_map<std::string, StoreFile*>::iterator file = this->fileNameMap.find(std::string(path));
     if (file != this->fileNameMap.end()) {
         return file->second;
     }
@@ -70,7 +81,7 @@ StoreFile* Store::getFileInfo(const char* path) {
 };
 
 StoreFileAccessor* Store::getAccessor(const char* path) {
-    unordered_map<string, StoreFile*>::iterator file = this->fileNameMap.find(string(path));
+    std::unordered_map<std::string, StoreFile*>::iterator file = this->fileNameMap.find(std::string(path));
     if (file != this->fileNameMap.end()) {
         return new StoreFileAccessor(file->second, this);
     }

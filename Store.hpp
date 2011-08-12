@@ -12,8 +12,6 @@
 #define MAXFILENAMELENGTH 265
 #define MAXFILECOUNT 100000
 
-using namespace std;
-
 struct StoreFile {
     char name[MAXFILENAMELENGTH];
     unsigned long long start;
@@ -36,16 +34,16 @@ class StoreFileAccessor;
 
 class Store {
     public:
-        string storefilename;
+        std::string storefilename;
         FILE* file;
         FileMap* fmap;
-        unordered_map<string, StoreFile*> fileNameMap;
+        std::unordered_map<std::string, StoreFile*> fileNameMap;
 
         void readStore();
 
         void saveStore();
 
-        Store(string storefilename) {
+        Store(std::string storefilename) {
             this->storefilename = storefilename;
             this->file = fopen(storefilename.c_str(), "r+b");
             this->fmap = new FileMap();
@@ -54,7 +52,7 @@ class Store {
             this->fmap->nextFreePos = 0;
             this->fmap->entries = 0;
 
-            cout<<"map start at "<<this->fmap->start<<endl;
+            std::cout<<"map start at "<<this->fmap->start<<std::endl;
 
             if (this->file == NULL) {
                 this->file = fopen(storefilename.c_str(), "w+b");
@@ -62,12 +60,12 @@ class Store {
             this->readStore();
 
             // generate fast file access map
-            cout<<"generate access map"<<endl;
+            std::cout<<"generate access map"<<std::endl;
             for (int i=0; i<this->fmap->entries; i++) {
-                this->fileNameMap[string("/") + this->fmap->map[i].name] = &(this->fmap->map[i]);
-                cout<<"insert "<<i<<" "<<string("/") + this->fmap->map[i].name<<" "<<strlen(this->fmap->map[i].name)<<endl;
+                this->fileNameMap[std::string("/") + this->fmap->map[i].name] = &(this->fmap->map[i]);
+                std::cout<<"insert "<<i<<" "<<std::string("/") + this->fmap->map[i].name<<" "<<strlen(this->fmap->map[i].name)<<std::endl;
             }
-            cout<<endl<<"done"<<endl;
+            std::cout<<std::endl<<"done"<<std::endl;
         };
 
         ~Store() {
@@ -80,9 +78,11 @@ class Store {
 
         int getFreeEntries();
 
-        void addFile(string name, struct stat stats, char* buf);
+        void addFile(std::string name, struct stat stats, char* buf);
 
-        void getFileList(vector<StoreFile>* paths);
+        void getFileList(std::vector<StoreFile>* paths);
+
+        bool rename(const char* oldname, const char* newname);
 
         StoreFile* getFileInfo(const char* path);
 

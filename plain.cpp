@@ -219,7 +219,16 @@ static int plain_release (const char *path, struct fuse_file_info *fi) {
     }
 
     return 0;
-}
+};
+
+static int plain_rename(const char* oldname, const char* newname) {
+    boost::mutex::scoped_lock lock(io_mutex);
+    if (!store->rename(oldname, newname)) {
+        return -ENOENT;
+    } else {
+        return 0;
+    }
+};
 
 static struct fuse_operations plain_operations = {0};
 
@@ -228,6 +237,7 @@ int main( int argc, char* argv[] ) {
     plain_operations.readdir = plain_readdir;
     plain_operations.open = plain_open;
     plain_operations.read = plain_read;
+    plain_operations.rename = plain_rename;
     plain_operations.create = plain_create;
     plain_operations.release = plain_release;
     plain_operations.write = plain_write;
